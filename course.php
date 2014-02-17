@@ -3,8 +3,8 @@
 	declare(ticks = 1);
 
 	### 課程訊息設置 ###
-	$useracc	= ""				# 帳號
-	$userpass 	= ""				# 密碼
+	$useracc	= "";				# 帳號
+	$userpass 	= "";				# 密碼
 	$courseID 	= "7404020";		# 課程編號
 	$classNum 	= "01";				# 班別
 	$depID 		= "I001";			# 系所編號 (I001 通識 , 4104 資工系)
