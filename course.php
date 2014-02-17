@@ -210,13 +210,13 @@
 				exit;
 			}
 			# 名額
-			$course_plot = $html->find('form', 0)->find('tr', 0)->find('th', 0)->find('table', 0)->find('tr', $courseRow)->find('th', 2);
-			$plot = $course_plot->plaintext;
+			$course_slot = $html->find('form', 0)->find('tr', 0)->find('th', 0)->find('table', 0)->find('tr', $courseRow)->find('th', 2);
+			$slot = $course_slot->plaintext;
 
 			echo ' - 課程名稱：'.$name."\n";
-			echo ' - 名額	：'.$plot."\n";
+			echo ' - 名額	：'.$slot."\n";
 
-			if ($plot == 1) {
+			if ($slot == 0) {
 				$sleepTime = rand($randMin, $randMax);
 				echo '額滿，'.$sleepTime.' 秒後重試'."\n";
 				sleep($sleepTime);
