@@ -5,19 +5,19 @@
 	### 課程訊息設置 ###
 	$useracc	= "";				# 帳號
 	$userpass 	= "";				# 密碼
-	$courseID 	= "7404020";		# 課程編號
+	$courseID 	= "7401012";		# 課程編號
 	$classNum 	= "01";				# 班別
-	$depID 		= "I001";			# 系所編號 (I001 通識 , 4104 資工系)
+	$depID 		= "I001";			# 系所編號 (I001 通識 , 4104 資工系, F000 體育)
 	$grade 		= "4";				# 年級/領域
-	$pageNum 	= 3;				# 在第幾頁
-	$point 		= 3;				# 學分數 (通識皆為3, 其餘減1 ex. 3 學分 -> $point = 2)
+	$pageNum 	= 1;				# 在第幾頁
+	$point 		= 3;				# 學分數 (通識=3, 體育=2, 其餘減1 ex. 3 學分 -> $point = 2)
 
 	### 擬人化 ###
 	# 擬人點頁面 1:ON/0:OFF
 	$personification = 0; 
 
 	# 隨機間隔時間 (second)
-	$randMin = 5; 	# 最短
+	$randMin = 10; 	# 最短
 	$randMax = 15;	# 最長
 
 	function logout($ch, $sessionID) {
