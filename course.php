@@ -216,7 +216,7 @@
 			echo ' - 課程名稱：'.$name."\n";
 			echo ' - 名額	：'.$slot."\n";
 
-			if ($slot == 0) {
+			if ($slot != 0) {
 				$sleepTime = rand($randMin, $randMax);
 				echo '額滿，'.$sleepTime.' 秒後重試'."\n";
 				sleep($sleepTime);
@@ -259,19 +259,15 @@
 				curl_setopt_array($ch, $optionsBook);
 
 				$pageResult = curl_exec($ch);
-				$html->load($pageResult);
 
-				$course_flag = $html->find('form', 0)->find('tr', 0)->find('th', 0)->find('table', 0)->find('tr', $courseRow)->find('th', 0);
-				$flag = $course_flag->innertext;
-
-				if (preg_match("/flag.gif/", $flag) == 1) {
-					echo '##### 成功選取 ######'."\n";
+				if (preg_match("/已滿/", $pageResult) == 0) {
+					echo '##### 成功加選課程 ######'."\n";
 					$success = 1;
 					logout($ch, $sessionID);
 					curl_close($ch);
 				} else {
 					$sleepTime = rand($randMin, $randMax);
-					echo '選取失敗，'.$sleepTime.'秒後重試'."\n";
+					echo '晚一步，'.$sleepTime.'秒後重試'."\n";
 					sleep($sleepTime);
 					if ($personification == 1) {
 						echo "進入第 ".($pageNum+1)." 頁\n";
