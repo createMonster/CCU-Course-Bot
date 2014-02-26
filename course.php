@@ -216,7 +216,7 @@
 			echo ' - 課程名稱：'.$name."\n";
 			echo ' - 名額	：'.$slot."\n";
 
-			if ($slot != 0) {
+			if ($slot == 0) {
 				$sleepTime = rand($randMin, $randMax);
 				echo '額滿，'.$sleepTime.' 秒後重試'."\n";
 				sleep($sleepTime);
