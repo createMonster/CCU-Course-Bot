@@ -1,17 +1,18 @@
 <?php
 	require_once('simple_html_dom.php');
 	declare(ticks = 1);
+	date_default_timezone_set('Asia/Taipei');
 
 	### 課程訊息設置 ###
-	$useracc	= "";				# 帳號
-	$userpass 	= "";				# 密碼
+	$useracc	= "";		# 帳號
+	$userpass 	= "";		# 密碼
 	$courseID 	= "7401012";		# 課程編號
 	$classNum 	= "01";				# 班別
 	$depID 		= "I001";			# 系所編號 (I001 通識 , 4104 資工系, F000 體育)
 	$grade 		= "4";				# 年級/領域
 	$pageNum 	= 1;				# 在第幾頁
 	$point 		= 3;				# 學分數 (通識=3, 體育=2, 其餘減1 ex. 3 學分 -> $point = 2)
-
+	
 	### 擬人化 ###
 	# 擬人點頁面 1:ON/0:OFF
 	$personification = 0; 
@@ -20,8 +21,14 @@
 	$randMin = 10; 	# 最短
 	$randMax = 15;	# 最長
 
+	# Other var
+	$failCount 	= 0;						# 記錄抓取失敗次數
+	$filename 	= "log_".date('Y-m-d_H-i-s')."_.txt";	# Log 名稱
+	$pageResult = "";
+	$shutdownReason = "";
+
 	function logout($ch, $sessionID) {
-		global $ch, $sessionID;
+		global $ch, $sessionID, $pageResult, $filename, $shutdownReason;
 
 		$optionsLogout = array(
 			CURLOPT_URL 			=> "http://kiki.ccu.edu.tw/~ccmisp06/cgi-bin/class_new/logout.php?session_id=".$sessionID,
@@ -40,9 +47,10 @@
 
 		if (preg_match("/成功登出/", $pageResult) == 1) {
 			echo "登出成功 ".$sessionID."\n";
+			$shutdownReason .= date('Y-m-d H:i:s')."	登出成功 ".$sessionID."\n";
 		} else {
 			echo "登出失敗 ".$sessionID."\n";
-			echo $pageResult;
+			$shutdownReason .= date('Y-m-d H:i:s')."	登出失敗 ".$sessionID."\n";
 		}
 	}
 
@@ -52,9 +60,10 @@
 
 	### signal handler, 強制退出時會記得等出 >.^ ###
 	function signal_handler($signal) {
-		global $ch, $sessionID;
+		global $ch, $sessionID, $filename, $shutdownReason;
         
         print "接收到強制關閉訊號，進行登出\n";
+        $shutdownReason .= date('Y-m-d H:i:s')."	接收到強制關閉訊號，進行登出\n";
         logout($ch, $sessionID);
 		curl_close($ch);
         exit;
@@ -67,8 +76,20 @@
 
 	if($personification == 1) {
 		echo "擬人化 - on\n";
-	} else {
+		$shutdownReason .= date('Y-m-d H:i:s')."	擬人化 - on\n";
+	} else { 
 		echo "擬人化 - off\n";
+		$shutdownReason .= date('Y-m-d H:i:s')."	擬人化 - off\n";
+	}
+
+	### 程式結束會留下 log ###
+	register_shutdown_function('CatchFatalError');
+
+	function CatchFatalError() {
+		global $pageResult, $filename, $shutdownReason;
+		file_put_contents($filename, $shutdownReason, FILE_APPEND);
+		file_put_contents($filename, $pageResult, FILE_APPEND);
+		exit(1);
 	}
 
 	### 登入 ###
@@ -85,13 +106,13 @@
 	curl_setopt_array($ch, $optionsLogin);
 
 	echo "登入中...\n";
-	$login_result = curl_exec($ch);
+	$pageResult = curl_exec($ch);
 
 	### 確認登入狀況，取得 session ID 後開始加選 ###
 	$sessionID_result = array();
-	if (preg_match("/session_id=(.{36})/", $login_result, $sessionID_result) == 0) {
+	if (preg_match("/session_id=(.{36})/", $pageResult, $sessionID_result) == 0) {
 		echo "登入失敗.\n";
-		echo $login_result;
+		$shutdownReason .= date('Y-m-d H:i:s')."	登入失敗\n";
 		curl_close($ch);
 	} else {
 		# Login Confirmed
@@ -100,6 +121,7 @@
 		# Fetch Session ID
 		$sessionID = $sessionID_result[1];
 		echo "登入成功，本次登入 session ID: ".$sessionID."\n";
+		$shutdownReason .= date('Y-m-d H:i:s')."	登入成功，本次登入 session ID: ".$sessionID."\n";
 
 		### 擬人化進入指定頁面 ###
 		if ($personification == 1) {
@@ -137,6 +159,11 @@
 
 		### 開始加選 ###
 		while( $success == 0 ) {
+			global $pageResult;
+
+			$pageResult = "";
+			file_put_contents($filename, $shutdownReason, FILE_APPEND);
+			$shutdownReason = "";
 			### 進入目標頁面 ###
 			#
 			# ## ARGUMENT ##
@@ -159,6 +186,25 @@
 			$pageResult = curl_exec($ch);
 
 			echo "進入目標頁面\n";
+			$shutdownReason .= date('Y-m-d H:i:s')."	進入目標頁面\n";
+
+			if (preg_match("/科目列表/", $pageResult) == 0) {
+				if ($failCount > 5) {
+					echo "多次抓取列表失敗，登出。";
+					$shutdownReason .= date('Y-m-d H:i:s')."	多次抓取列表失敗，登出。\n";
+					$success = 1;
+					$firstTime = 0;
+					logout($ch, $sessionID);
+					curl_close($ch);
+					exit;
+				}
+				$failCount++;
+				$sleepTime = rand($randMin, $randMax);
+				echo '列表抓取失敗，'.$sleepTime.'秒後重試'."\n";
+				$shutdownReason .= date('Y-m-d H:i:s').'	列表抓取失敗，'.$sleepTime.'秒後重試'."\n";
+				sleep($sleepTime);
+				continue;
+			}
 
 			### 確認剩餘人數及課程名稱 ###
 			$html = new simple_html_dom();
@@ -186,7 +232,8 @@
 				}
 
 				if($courseRow == -1){
-					echo "錯誤，抓到不正確課程\n";
+					echo "錯誤，抓到不正確課程位置 (1)\n";
+					$shutdownReason .= date('Y-m-d H:i:s')."	錯誤，抓到不正確課程位置 (1)\n";
 					$success = 1;
 					$firstTime = 0;
 					logout($ch, $sessionID);
@@ -204,6 +251,7 @@
 
 			if (preg_match("/".$courseID."/", $name) == 0) {
 				echo "錯誤，抓到不正確課程"."(".$name.")\n";
+				$shutdownReason .= date('Y-m-d H:i:s')."	錯誤，抓到不正確課程"."(".$name.")\n";
 				$success = 1;
 				logout($ch, $sessionID);
 				curl_close($ch);
@@ -216,9 +264,12 @@
 			echo ' - 課程名稱：'.$name."\n";
 			echo ' - 名額	：'.$slot."\n";
 
+			$shutdownReason .= date('Y-m-d H:i:s').'	課程名稱：'.$name.', 名額：'.$slot."\n";
+
 			if ($slot == 0) {
 				$sleepTime = rand($randMin, $randMax);
 				echo '額滿，'.$sleepTime.' 秒後重試'."\n";
+				$shutdownReason .= date('Y-m-d H:i:s').'	額滿，'.$sleepTime.' 秒後重試'."\n";
 				sleep($sleepTime);
 				if ($personification == 1) {
 					echo "進入第 ".($pageNum+1)." 頁\n";
@@ -238,6 +289,7 @@
 				}
 			} else {
 				echo '##### 目前有名額！'."\n";
+				$shutdownReason .= date('Y-m-d H:i:s')."	目前有名額\n";
 				# 加選
 				#
 				# ## ARGUMENT ##
@@ -262,12 +314,14 @@
 
 				if (preg_match("/已滿/", $pageResult) == 0) {
 					echo '##### 成功加選課程 ######'."\n";
+					$shutdownReason .= date('Y-m-d H:i:s')."	成功加選課程\n";
 					$success = 1;
 					logout($ch, $sessionID);
 					curl_close($ch);
 				} else {
 					$sleepTime = rand($randMin, $randMax);
 					echo '晚一步，'.$sleepTime.'秒後重試'."\n";
+					$shutdownReason .= date('Y-m-d H:i:s').'	晚一步，'.$sleepTime.'秒後重試'."\n";
 					sleep($sleepTime);
 					if ($personification == 1) {
 						echo "進入第 ".($pageNum+1)." 頁\n";
