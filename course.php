@@ -6,11 +6,11 @@
 	### 課程訊息設置 ###
 	$useracc	= "";		# 帳號
 	$userpass 	= "";		# 密碼
-	$courseID 	= "7401012";		# 課程編號
+	$courseID 	= "7304007";		# 課程編號
 	$classNum 	= "01";				# 班別
 	$depID 		= "I001";			# 系所編號 (I001 通識 , 4104 資工系, F000 體育)
-	$grade 		= "4";				# 年級/領域
-	$pageNum 	= 1;				# 在第幾頁
+	$grade 		= "3";				# 年級/領域
+	$pageNum 	= 3;				# 在第幾頁
 	$point 		= 3;				# 學分數 (通識=3, 體育=2, 其餘減1 ex. 3 學分 -> $point = 2)
 	
 	### 擬人化 ###
@@ -28,7 +28,7 @@
 	$shutdownReason = "";
 
 	function logout($ch, $sessionID) {
-		global $ch, $sessionID, $pageResult, $filename, $shutdownReason;
+		global $ch, $sessionID, $filename, $shutdownReason;
 
 		$optionsLogout = array(
 			CURLOPT_URL 			=> "http://kiki.ccu.edu.tw/~ccmisp06/cgi-bin/class_new/logout.php?session_id=".$sessionID,
@@ -225,7 +225,30 @@
 						$courseRow = $count;
 						echo "已找到課程位置"."(".$courseRow.")\n";
 						$firstTime = 0;
-						break;
+
+						### 檢查是否衝堂 ###
+						$optionsBook = array(
+						CURLOPT_URL 			=> "http://kiki.ccu.edu.tw/~ccmisp06/cgi-bin/class_new/Add_Course01.cgi",
+					 	CURLOPT_HEADER 			=> false,
+					  	CURLOPT_POST 			=> true,
+					  	CURLOPT_POSTFIELDS 		=> 'session_id='.$sessionID.'&dept='.$depID.'&grade='.$grade.'&cge_cate=&cge_subcate=&page='.$pageNum.'&e=0&SelectTag=1&'.$courseID.'_'.$classNum.'='.$point.'&course='.$courseID.'_'.$classNum,
+					  	CURLOPT_USERAGENT		=> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.9; rv:27.0) Gecko/20100101 Firefox/27.0",
+					  	CURLOPT_FOLLOWLOCATION 	=> true,
+					  	CURLOPT_RETURNTRANSFER 	=> true,
+					  	CURLOPT_COOKIEJAR 		=> 'cookie',
+					  	CURLOPT_COOKIEFILE 		=> 'cookie');
+						curl_setopt_array($ch, $optionsBook);
+
+						$pageResult = curl_exec($ch);
+
+						if (preg_match("/衝堂/", $pageResult) == 1) {
+							echo '##### 錯誤，衝堂 ######'."\n";
+							$shutdownReason .= date('Y-m-d H:i:s')."	錯誤，衝堂\n";
+							$success = 1;
+							logout($ch, $sessionID);
+							curl_close($ch);
+							exit;
+						}
 					}
 
 					$count++;
